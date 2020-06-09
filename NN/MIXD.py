@@ -599,10 +599,9 @@ if __name__=="__main__":
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
     num_mix = [2**i for i in range(7)]
-    loss = ["MSE","L1","H2","MDDKLD","MDDEDIV","LOGMSE"]
+    loss = ["MSE","L1","H2","MDDKLD","MDDEDIV"]
     optim = ["Adam","SGD"]
     gau = torch.linspace(-15,15,100+1)
-    poly = torch.linspace(0,30,100+1)
     real = torch.linspace(0,300,100+1)
     g = ParameterGrid({"loss":loss,"optim":optim})
 
@@ -611,9 +610,9 @@ if __name__=="__main__":
     for v,i in enumerate(g):
         try:
             print(i)
-            m = MixD(T=100,num_mix=5,input_dim=9,bins=gau,mix_dist="Gaussian").to(device)#i["num_mix"]PoissonLogNormal
+            m = MixD(T=100,num_mix=6,input_dim=9,bins=gau,mix_dist="Gaussian").to(device)
 
-            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=200,data="Gaussian",loss_fn="L1 MAX",optim="Adam")#i["loss"]i["optim"]
+            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=200,data="Gaussian",loss_fn=i["loss"],optim=i["optim"])
 
         except Exception as inst:
             print("ERROR!!!!")

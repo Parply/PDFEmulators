@@ -61,7 +61,6 @@ def LOGMSE(x,y,ep=1e-12):
     return (y.clamp(ep)/x.clamp(ep)).log().pow(2).mean()
 
 
-#e_div_c = lambda x,y: (x*(((x/(y.clamp(1e-37))).clamp(1e-37)).log().pow(2))+y*(((y/(x.clamp(1e-37))).clamp(1e-37)).log().pow(2))).sum(axis=-1).mean()
 
 def dataLoader(T=100,data="Gene"):
     """

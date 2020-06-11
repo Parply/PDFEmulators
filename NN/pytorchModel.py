@@ -130,9 +130,9 @@ def dataLoader(T=100,data="Gene"):
     return xall,yall,scalesM,scalesS
 
 class model(nn.Module):
-   """
-   LSTM Model class
-   """
+    """
+    LSTM Model class
+    """
     def __init__(self,input_dim=9,
                  T=100,prev=32,lstm_size=512,device_index=0,
                  batch_size=1024,e_learning_rate=1e-5,bidir=True,

@@ -21,6 +21,7 @@ import pickle
 import gc
 from torch.distributions.normal import Normal
 from cells import LSTMCell,PeepholeLSTMCell,GRUCell
+from wassertein_distance import SinkhornDistance
 
 
 
@@ -152,7 +153,8 @@ class model(nn.Module):
         self.bidir = bidir
         self.celltype=celltype
         self.device_index = device_index
-        
+        self.was_p = 1
+        self.mbins = torch.arange(T).to(self.device,non_blocking=self.use_cuda)        
         self._build_net()
     def _build_net(self):
         # build layers
@@ -275,9 +277,7 @@ class model(nn.Module):
             y_prev = y_prev[1:] +[x]
         return ys
     
-    @staticmethod
-    def get_yprev23(y_prev,t,ys):
-        return torch.cat((y_prev[:,1:],ys[:,t-1].unsqueeze(1)),1)
+
     
     def initial_hidden(self):
         # create initial states for lstm arrays
@@ -484,12 +484,13 @@ class model(nn.Module):
         self.MDDKLD = MDDKLD
         self.MDDEDIV = MDDEDIV
         self.LOGMSE = LOGMSE
+        self.sink= partial(SinkhornDistance(10e-15,10e8,10e-12,reduction='mean',p=self.was_p).forward,x_support=self.mbins,y_support=self.mbins)
         #self.edivc = e_div_c
         #self.a_mse =lambda x,y : adj_mse(x,y)+ dist_loss(x,y)
 
         self.l1_max_fn = lambda x,y : self.l1LossFN_t(x,y).max(dim=-1)[0].mean()
-        allLoss = np.array(["MSE","DIV","L1 MAX","L1","H2","EDIV","EDIV2","MDDKLD","MDDEDIV","LOGMSE"])
-        lossFns = np.array([self.mse_fn,self.div_fn,self.l1_max_fn,self.l1LossFN,self.h2,self.ediv,self.ediv2,self.MDDKLD,self.MDDEDIV,self.LOGMSE])
+        allLoss = np.array(["MSE","DIV","L1 MAX","L1","H2","EDIV","EDIV2","MDDKLD","MDDEDIV","LOGMSE","SINK"])
+        lossFns = np.array([self.mse_fn,self.div_fn,self.l1_max_fn,self.l1LossFN,self.h2,self.ediv,self.ediv2,self.MDDKLD,self.MDDEDIV,self.LOGMSE,self.sink])
         ind1 = np.where(allLoss==self.loss_fn)
         ind2 = np.where(allLoss!=self.loss_fn)
         s = allLoss.size

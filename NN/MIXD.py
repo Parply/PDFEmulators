@@ -300,6 +300,7 @@ class MixD(model):
         self.mix_dist = mix_dist
         self.bivariate = False
         self.num_mix = num_mix
+        
         # create layers
         self.p0 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
         self.p1 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
@@ -316,9 +317,8 @@ class MixD(model):
         self.embedding5 = nn.Linear(128,64).to(self.device,non_blocking=self.use_cuda)
         self.embedding5Act = dense_act
         
+        self.was_p = 2
         
-        
-            
         self.ai = nn.Linear(64,self.num_mix)
         self.aiAct = nn.Softmax(dim=1)
         self.mix = torch.arange(0,self.num_mix,dtype=torch.int).to(self.device,non_blocking=self.use_cuda)
@@ -346,7 +346,9 @@ class MixD(model):
             self.bivariate = True
         else:
             raise ValueError("Invalid mixture distribution")
-    
+        if mix_dist != "bivariateGammaPoisson":
+            self.mbins = (bins[1:] - bins[:-1]).to(self.device,non_blocking=self.use_cuda)
+
     def forward(self, x):
         # forward function
         # initial dense layers
@@ -599,20 +601,20 @@ if __name__=="__main__":
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
     num_mix = [2**i for i in range(7)]
-    loss = ["MSE","L1","H2","MDDKLD","MDDEDIV"]
+    loss = ["SINK","L1","H2","MDDEDIV"]
     optim = ["Adam","SGD"]
     gau = torch.linspace(-15,15,100+1)
     real = torch.linspace(0,300,100+1)
-    g = ParameterGrid({"loss":loss,"optim":optim})
+    g = ParameterGrid({"loss":loss})
 
     val_loss = [[None,i] for i in g] 
     train_loss = [[None,i] for i in g] 
     for v,i in enumerate(g):
         try:
             print(i)
-            m = MixD(T=100,num_mix=6,input_dim=9,bins=gau,mix_dist="Gaussian").to(device)
-
-            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=200,data="Gaussian",loss_fn=i["loss"],optim=i["optim"])
+            m = MixD(T=100,p_act=(nn.Identity(),Exponential()),num_mix=3,input_dim=9,bins=gau,mix_dist="Gaussian").to(device)
+            m.was_p = 2
+            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=3000,data="Gaussian",loss_fn=i["loss"],optim="Adam",model_name=i["loss"])
 
         except Exception as inst:
             print("ERROR!!!!")

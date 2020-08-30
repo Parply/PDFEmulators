@@ -1,0 +1,9 @@
+NN/best
+NN/final
+NN/runs
+NN/__pycache__
+NN/script.py
+*.pickle
+*.hdf5
+*.pth
+NN/gaussian_100.hdf5

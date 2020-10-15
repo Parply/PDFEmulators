@@ -282,6 +282,26 @@ class bivariatePoissonLogNormal(ExponentialFamily):
         res = torch.zeros((self.batch_size,nx.max()+2,ny.max()+2)).to(self.device)
         res[:,1:,1:] = self.prob(rx,ry).view(self.batch_size,nx.max()+1,ny.max()+1).cumsum(-1).cumsum(-2)
         return res 
+
+
+class parameter_head(nn.Module):
+    def __init__(self,out_act,base_size,out_size):
+        super().__init__()
+        self.use_cuda = torch.cuda.is_available()
+        self.device = torch.device(f"cuda" if self.use_cuda else "cpu")
+
+        self.l1 = nn.Linear(base_size,32).to(self.device,non_blocking=self.use_cuda)
+
+        self.l2 = nn.Linear(32,out_size).to(self.device,non_blocking=self.use_cuda)
+
+        self.act = nn.ELU()
+        self.outact = out_act
+    def forward(self,x):
+        x=self.act(self.l1(x))
+        return self.outact(self.l2(x))
+
+
+
 class MixD(model):
     """
     Mixture Model
@@ -302,9 +322,9 @@ class MixD(model):
         self.num_mix = num_mix
         
         # create layers
-        self.p0 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
-        self.p1 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
-        
+        self.p0 = parameter_head(self.p0_act,64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
+        self.p1 = parameter_head(self.p1_act,64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
+
         self.e_learning_rate = learning_rate
         self.embedding1 = nn.Linear(self.input_dim,64).to(self.device,non_blocking=self.use_cuda)
         self.embedding1Act = dense_act
@@ -319,8 +339,9 @@ class MixD(model):
         
         self.was_p = 2
         
-        self.ai = nn.Linear(64,self.num_mix)
         self.aiAct = nn.Softmax(dim=1)
+        self.ai = parameter_head(self.aiAct,64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
+        
         self.mix = torch.arange(0,self.num_mix,dtype=torch.int).to(self.device,non_blocking=self.use_cuda)
         self.mix_dist = mix_dist
         # set which function to use for getting predictions and set bins
@@ -339,10 +360,11 @@ class MixD(model):
             self.binsx = (bins[0]-1).to(self.device,non_blocking=self.use_cuda)
             self.binsy = (bins[1]-1).to(self.device,non_blocking=self.use_cuda)
             # create additional layers required for this distribution
-            self.p2 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
-            self.p3 = nn.Linear(64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
             self.p2_act = p_act[2]
             self.p3_act = p_act[3]
+            self.p2 = parameter_head(self.aiAct,64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
+            self.p3 = parameter_head(self.aiAct,64,self.num_mix).to(self.device,non_blocking=self.use_cuda)
+            
             self.bivariate = True
         else:
             raise ValueError("Invalid mixture distribution")
@@ -359,17 +381,17 @@ class MixD(model):
         x = self.embedding5Act(self.embedding5(x))
         # get predictions of parameters
         if self.bivariate:
-            p0 = self.p0_act(self.p0(x))
-            p1 = self.p1_act(self.p1(x))
-            p2 = self.p2_act(self.p2(x))
-            p3 = self.p3_act(self.p3(x))
+            p0 = self.p0(x)
+            p1 = self.p1(x)
+            p2 = self.p2(x)
+            p3 = self.p3(x)
             p = (p0,p1,p2,p3)
         else:
-            p0 = self.p0_act(self.p0(x))
-            p1 = self.p1_act(self.p1(x))
+            p0 = self.p0(x)
+            p1 = self.p1(x)
             p = (p0,p1)
         # get weights
-        pr = self.aiAct(self.ai(x))
+        pr = self.ai(x)
         
         return p,pr    
     def normalPredict(self,x):

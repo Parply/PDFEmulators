@@ -7,3 +7,4 @@ NN/script.py
 *.hdf5
 *.pth
 NN/gaussian_100.hdf5
+NN/job.sh

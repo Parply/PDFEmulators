@@ -601,7 +601,7 @@ if __name__=="__main__":
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
     num_mix = [2**i for i in range(7)]
-    loss = ["SINK","L1","H2","MDDEDIV"]
+    loss = ["SINK","L1","H2","MDDEDIV","MSE"]
     optim = ["Adam","SGD"]
     gau = torch.linspace(-15,15,100+1)
     real = torch.linspace(0,300,100+1)
@@ -614,7 +614,7 @@ if __name__=="__main__":
             print(i)
             m = MixD(T=100,p_act=(nn.Identity(),Exponential()),num_mix=3,input_dim=9,bins=gau,mix_dist="Gaussian").to(device)
             m.was_p = 2
-            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=3000,data="Gaussian",loss_fn=i["loss"],optim="Adam",model_name=i["loss"])
+            train_loss[v][0],val_loss[v][0] = m.train_model(epochs=5000,data="Gaussian",loss_fn=i["loss"],optim="Adam",model_name=i["loss"])
 
         except Exception as inst:
             print("ERROR!!!!")
